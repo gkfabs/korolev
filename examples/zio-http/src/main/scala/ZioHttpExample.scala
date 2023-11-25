@@ -71,13 +71,13 @@ object ZioHttpExample extends ZIOAppDefault {
       }
     )
 
-    def route(): HttpApp[Any, Throwable] = {
+    def route(): HttpApp[Any] = {
       new ZioHttpKorolev[Any].service(config)
     }
 
   }
 
-  private def getAppRoute(): ZIO[Any, Nothing, HttpApp[Any, Throwable]] = {
+  private def getAppRoute(): ZIO[Any, Nothing, HttpApp[Any]] = {
     ZIO.runtime[Any].map { implicit rts =>
       new Service().route()
     }
@@ -88,7 +88,7 @@ object ZioHttpExample extends ZIOAppDefault {
     for {
       httpApp <- getAppRoute()
       _ <- Server
-        .serve(httpApp.catchAllZIO(_ => ZIO.succeed(Response.status(Status.InternalServerError))))
+        .serve(httpApp)
         .provide(Server.defaultWithPort(8088))
         .orDie
     } yield ZExitCode.success

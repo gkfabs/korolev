@@ -14,8 +14,8 @@ val ce2Version = "2.5.5"
 val ce3Version = "3.3.12"
 
 val zioVersion = "1.0.15"
-val zio2Version = "2.0.0"
-val zioHttpVersion = "3.0.0-RC2"
+val zio2Version = "2.0.19"
+val zioHttpVersion = "3.0.0-RC3"
 
 val fs2ce2Version = "2.5.11"
 val fs2ce3Version = "3.2.8"
@@ -50,6 +50,7 @@ val publishSettings = Seq(
 
 val commonSettings = publishSettings ++ Seq(
   git.useGitDescribe := true,
+  version := "1.16.0-M6",
   organization := "org.fomkin",
   scalaVersion := scala2_13Version,
   // Add Scala 2 compiler plugins

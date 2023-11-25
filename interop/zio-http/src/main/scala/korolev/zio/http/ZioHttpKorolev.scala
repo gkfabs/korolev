@@ -1,6 +1,7 @@
 package korolev.zio.http
 
 import _root_.zio.http.*
+import _root_.zio.http.codec.PathCodec
 import _root_.zio.stream.ZStream
 import _root_.zio.{Chunk, NonEmptyChunk, RIO, ZIO}
 import korolev.data.{Bytes, BytesLike}
@@ -19,7 +20,7 @@ class ZioHttpKorolev[R] {
 
   def service[S: StateSerializer: StateDeserializer, M]
   (config: KorolevServiceConfig[RIO[R, *], S, M])
-  (implicit eff:  ZEffect): HttpApp[R, Throwable] = {
+  (implicit eff:  ZEffect): HttpApp[R] = {
 
     val korolevServer = korolev.server.korolevService(config)
 
@@ -33,10 +34,16 @@ class ZioHttpKorolev[R] {
         case req =>
           routeHttpRequest(rootPath, req, korolevServer)
       }
-    
-    Http.collectZIO {
-      case req if matchPrefix(rootPath, req.url.path) => app(req)
-    }
+
+    Routes(
+      Method.ANY / rootPath.toString / PathCodec.trailing -> handler {
+        val extractRequest = Handler.param[(Path, Request)](_._2)
+        for {
+          request <- extractRequest
+          response <- Handler.fromZIO(app(request))
+        } yield response
+      }
+    ).handleError(_ => Response.status(Status.InternalServerError)).toHttpApp
   }
 
   private def matchWebSocket(req: Request): Boolean = {
@@ -103,7 +110,7 @@ class ZioHttpKorolev[R] {
       }
       route <- buildSocket(toClient, fromClientKQueue)
     } yield {
-      route.withHeader(Header.SecWebSocketProtocol(NonEmptyChunk(selectedProtocol)))
+      route.addHeader(Header.SecWebSocketProtocol(NonEmptyChunk(selectedProtocol)))
     }
   }
 
