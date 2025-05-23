@@ -20,7 +20,7 @@ class ZioHttpKorolev[R] {
 
   def service[S: StateSerializer: StateDeserializer, M]
   (config: KorolevServiceConfig[RIO[R, *], S, M])
-  (implicit eff:  ZEffect): HttpApp[R] = {
+  (implicit eff:  ZEffect): Routes[R, Nothing] = {
 
     val korolevServer = korolev.server.korolevService(config)
 
@@ -43,7 +43,7 @@ class ZioHttpKorolev[R] {
           response <- Handler.fromZIO(app(request))
         } yield response
       }
-    ).handleError(_ => Response.status(Status.InternalServerError)).toHttpApp
+    ).handleError(_ => Response.status(Status.InternalServerError))
   }
 
   private def matchWebSocket(req: Request): Boolean = {
@@ -166,13 +166,13 @@ class ZioHttpKorolev[R] {
                                  korolevRequest: KorolevHttpRequest[RIO[R, *]]
                                 ): ZIO[R, Throwable, Response] = {
     korolevServer.http(korolevRequest).flatMap {
-      case KorolevResponse(status, stream, responseHeaders, _) =>
+      case KorolevResponse(status, stream, responseHeaders, contentLength) =>
         val headers = Headers(responseHeaders.map { case (name, value) => Header.Custom(name, value)})
         val body: ZStream[R, Throwable, Byte] = stream.toZStream.flatMap { (bytes: Bytes) =>
           ZStream.fromIterable(bytes.as[Array[Byte]])
         }
 
-        ZIO.environmentWithZIO[R](env => ZIO.attempt(Body.fromStream(body.provideEnvironment(env))))
+        ZIO.environmentWithZIO[R](env => ZIO.attempt(Body.fromStream(body.provideEnvironment(env), contentLength.getOrElse(0))))
           .map(body => Response(
             status = HttpStatusConverter.fromKorolevStatus(status),
             headers = headers,

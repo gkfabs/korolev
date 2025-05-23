@@ -6,8 +6,8 @@ import korolev.web.PathAndQuery
 import korolev.zio.Zio2Effect
 import korolev.state.javaSerialization.*
 import korolev.zio.http.ZioHttpKorolev
-import zio.http.HttpApp
 import zio.http.Response
+import zio.http.Routes
 import zio.http.Server
 import zio.http.Status
 
@@ -71,24 +71,24 @@ object ZioHttpExample extends ZIOAppDefault {
       }
     )
 
-    def route(): HttpApp[Any] = {
+    def routes(): Routes[Any, Nothing] = {
       new ZioHttpKorolev[Any].service(config)
     }
 
   }
 
-  private def getAppRoute(): ZIO[Any, Nothing, HttpApp[Any]] = {
+  private def getAppRoutes(): ZIO[Any, Nothing, Routes[Any, Nothing]] = {
     ZIO.runtime[Any].map { implicit rts =>
-      new Service().route()
+      new Service().routes()
     }
   }
 
 
   override def run =
     for {
-      httpApp <- getAppRoute()
+      appRoutes <- getAppRoutes()
       _ <- Server
-        .serve(httpApp)
+        .serve(appRoutes)
         .provide(Server.defaultWithPort(8088))
         .orDie
     } yield ZExitCode.success
